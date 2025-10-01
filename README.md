@@ -7,27 +7,42 @@ Notes:
 - These files will change, please check nalang time to time, pero di naman ako active sa github :>>
 
 Files:
-digidocs.db ----> SQLite Database
+
+digidocs.db 
+
+            ----> SQLite Database
             ----> Runs on DB Browser (download niyo nalang muna)
 
-pubspec.yaml ----> Flutter dependencies, assets, and other settings
-              ---> Makes external packages (sqflite_common_ffi(andito yung database, since gagawa sya ng new SQLite file if ever nonexistent and SQLite))
+pubspec.yaml 
 
-main.dart (entry point) ----> Initializes the SQLite (sqflite_common_ffi) and launches the app. 
-                        ----> imports digidocs_app.dart para sa UI
-                        ----> imports db_service.dart if ever yung SQLite database file is nonexistent
+              ----> Flutter dependencies, assets, and other settings
+              ----> Makes external packages (sqflite_common_ffi(andito yung database, since gagawa sya ng new SQLite file if ever nonexistent and SQLite))
 
-digidocs_app.dart (app shell & routing) ----> main app widget and theme (UI)
-                                        ----> Navigation between pages. Login page to dashboard
+main.dart (entry point) 
 
-dashboard.dart (UI) ----> main interface after login
-                    ----> displays CRUD operations
-                    ----> may search bar, logout,
+            ----> Initializes the SQLite (sqflite_common_ffi) and launches the app. 
+            ----> imports digidocs_app.dart para sa UI
+            ----> imports db_service.dart if ever yung SQLite database file is nonexistent
 
-db_helper.dart (low-level DB setup) ----> andito yung table creation (database setup)
-                                    ----> manages database version
-                                    ----> used by db_service.dart to perform CRUD operations
+digidocs_app.dart (app shell & routing) 
 
-db_service.dart (high-level DB operations) ----> high-level database operation like adding, updating, deleting users or documents. 
-                                           ----> acts as a bridge between dashboard.dart (UI) and db_helper.dart (database)
+            ----> main app widget and theme (UI)
+            ----> Navigation between pages. Login page to dashboard
+
+dashboard.dart (UI) 
+
+            ----> main interface after login
+            ----> displays CRUD operations
+            ----> may search bar, logout,
+
+db_helper.dart (low-level DB setup) 
+
+            ----> andito yung table creation (database setup)
+            ----> manages database version
+            ----> used by db_service.dart to perform CRUD operations
+
+db_service.dart (high-level DB operations) 
+
+            ----> high-level database operation like adding, updating, deleting users or documents. 
+            ----> acts as a bridge between dashboard.dart (UI) and db_helper.dart (database)
             
