@@ -1,9 +1,9 @@
 name: digidocs
-description: A digital archiving system with SQLite
-version: 1.0.0+1
+description: A digital archiving system built with Flutter for Windows.
+publish_to: "none"
 
 environment:
-  sdk: ">=3.3.0 <4.0.0"
+  sdk: ">=2.17.0 <3.0.0"
 
 dependencies:
   flutter:
@@ -11,7 +11,6 @@ dependencies:
   sqflite_common_ffi: ^2.3.0
   path: ^1.9.0
   file_picker: ^8.0.0
-  open_filex: ^4.5.0
 
 flutter:
   uses-material-design: true
