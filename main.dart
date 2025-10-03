@@ -4,7 +4,7 @@ import 'db_helper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await DatabaseHelper().initDatabase(); // ensure DB initialized
+  await DatabaseHelper.instance.database; // initialize DB
   runApp(DigiDocsApp());
 }
 
@@ -15,7 +15,6 @@ class DigiDocsApp extends StatelessWidget {
       title: 'DigiDocs',
       theme: ThemeData(primarySwatch: Colors.blue),
       home: LoginPage(),
-      debugShowCheckedModeBanner: false,
     );
   }
 }
