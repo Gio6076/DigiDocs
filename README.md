@@ -2,7 +2,7 @@ These are the latest code files for DigiDocs as of now.
 
 Notes:
 - Download DB browser for SQLite database
-- Several of this is AI kaya need talaga aralin :>>
+- Several codes are AI kaya need talaga aralin :>>
 - Run only on "windows" devices "flutter run -d windows" (di gagana yung database if edge or chrome lang yung connected)
 - These files will change, please check nalang time to time :>>
 
