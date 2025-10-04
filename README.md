@@ -24,11 +24,6 @@ main.dart (entry point)
             ----> imports digidocs_app.dart para sa UI
             ----> imports db_service.dart if ever yung SQLite database file is nonexistent
 
-digidocs_app.dart (app shell & routing) 
-
-            ----> main app widget and theme (UI)
-            ----> Navigation between pages. Login page to dashboard
-
 dashboard.dart (UI) 
 
             ----> main interface after login
