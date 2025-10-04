@@ -21,7 +21,6 @@ pubspec.yaml
 main.dart (entry point) 
 
             ----> Initializes the SQLite (sqflite_common_ffi) and launches the app. 
-            ----> imports digidocs_app.dart para sa UI
             ----> imports db_service.dart if ever yung SQLite database file is nonexistent
 
 dashboard.dart (UI) 
