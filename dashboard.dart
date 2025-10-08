@@ -3,6 +3,8 @@ import 'db_service.dart';
 import 'login_page.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
+import 'notes_page.dart';
+import 'calendar_page.dart';
 
 class Dashboard extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -146,73 +148,105 @@ class _DashboardState extends State<Dashboard> {
           IconButton(onPressed: _logout, icon: Icon(Icons.logout)),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // 🔍 Search
-            Padding(
-              padding: EdgeInsets.all(8),
-              child: TextField(
-                decoration: InputDecoration(
-                  hintText: "Search documents...",
-                  prefixIcon: Icon(Icons.search),
-                  border: OutlineInputBorder(),
-                ),
-                onChanged: (val) => setState(() => searchQuery = val),
+      body: ListView(
+        children: [
+          // 🔍 Search bar
+          Padding(
+            padding: EdgeInsets.all(8),
+            child: TextField(
+              decoration: InputDecoration(
+                hintText: "Search documents...",
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
               ),
+              onChanged: (val) => setState(() => searchQuery = val),
             ),
-            // 📂 File Management
+          ),
+          Divider(),
+
+          // 📂 File management section
+          ListTile(
+            leading: Icon(Icons.folder),
+            title: Text("Manage Files"),
+            onTap: () {},
+          ),
+          Padding(
+            padding: EdgeInsets.all(8),
+            child: ElevatedButton(
+                onPressed: _uploadFile, child: Text("Upload File")),
+          ),
+          ...filteredDocs.map((doc) => ListTile(
+                title: Text(doc['title']),
+                subtitle: Text("By ${doc['author']} on ${doc['uploadedAt']}"),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                        onPressed: () => _downloadFile(doc['filePath']),
+                        icon: Icon(Icons.download)),
+                    IconButton(
+                        onPressed: () => _deleteFile(doc['id'], doc['title']),
+                        icon: Icon(Icons.delete)),
+                  ],
+                ),
+              )),
+          Divider(),
+
+          // 📝 Notes section
+          ListTile(
+            leading: Icon(Icons.note_alt),
+            title: Text("Notes"),
+            subtitle: Text("Write and view your personal notes"),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => NotesPage(user: widget.user)),
+              );
+            },
+          ),
+          Divider(),
+
+          // 🗓️ Calendar section
+          ListTile(
+            leading: Icon(Icons.calendar_month),
+            title: Text("Calendar"),
+            subtitle: Text("Add and view your events"),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => CalendarPage(user: widget.user)),
+              );
+            },
+          ),
+          Divider(),
+
+          // 📜 Audit Logs
+          ListTile(
+              title: Text("Audit Logs",
+                  style: TextStyle(fontWeight: FontWeight.bold))),
+          ...logs.map((log) => ListTile(
+                title: Text("${log['action']}"),
+                subtitle: Text("${log['details']} at ${log['createdAt']}"),
+              )),
+          Divider(),
+
+          // 👥 User Management (Admin only)
+          if (widget.user['role'] == 'admin') ...[
             ListTile(
-                title: Text("File Management",
+                title: Text("User Management",
                     style: TextStyle(fontWeight: FontWeight.bold))),
-            Row(
-              children: [
-                ElevatedButton(
-                    onPressed: _uploadFile, child: Text("Upload File")),
-              ],
-            ),
-            ...filteredDocs.map((doc) => ListTile(
-                  title: Text(doc['title']),
-                  subtitle: Text("By ${doc['author']} on ${doc['uploadedAt']}"),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                          onPressed: () => _downloadFile(doc['filePath']),
-                          icon: Icon(Icons.download)),
-                      IconButton(
-                          onPressed: () => _deleteFile(doc['id'], doc['title']),
-                          icon: Icon(Icons.delete)),
-                    ],
+            ElevatedButton(onPressed: _addUser, child: Text("Add User")),
+            ...users.map((u) => ListTile(
+                  title: Text(u['name']),
+                  subtitle: Text("${u['email']} - ${u['role']}"),
+                  trailing: IconButton(
+                    icon: Icon(Icons.delete),
+                    onPressed: () => _deleteUser(u['id'], u['email']),
                   ),
                 )),
-            Divider(),
-            // 📜 Audit Logs
-            ListTile(
-                title: Text("Audit Logs",
-                    style: TextStyle(fontWeight: FontWeight.bold))),
-            ...logs.map((log) => ListTile(
-                  title: Text("${log['action']}"),
-                  subtitle: Text("${log['details']} at ${log['createdAt']}"),
-                )),
-            Divider(),
-            // 👥 User Management (Admin only)
-            if (widget.user['role'] == 'admin') ...[
-              ListTile(
-                  title: Text("User Management",
-                      style: TextStyle(fontWeight: FontWeight.bold))),
-              ElevatedButton(onPressed: _addUser, child: Text("Add User")),
-              ...users.map((u) => ListTile(
-                    title: Text(u['name']),
-                    subtitle: Text("${u['email']} - ${u['role']}"),
-                    trailing: IconButton(
-                      icon: Icon(Icons.delete),
-                      onPressed: () => _deleteUser(u['id'], u['email']),
-                    ),
-                  )),
-            ],
           ],
-        ),
+        ],
       ),
     );
   }
