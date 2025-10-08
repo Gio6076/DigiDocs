@@ -63,4 +63,36 @@ class DatabaseService {
     final db = await dbHelper.database;
     await db.delete('users', where: 'id = ?', whereArgs: [id]);
   }
+
+  // NOTES
+  Future<List<Map<String, dynamic>>> getNotes() async {
+    final db = await dbHelper.database;
+    return await db.query('Notes', orderBy: 'createdAt DESC');
+  }
+
+  Future<void> insertNote(Map<String, dynamic> note) async {
+    final db = await dbHelper.database;
+    await db.insert('Notes', note);
+  }
+
+  Future<void> deleteNote(int id) async {
+    final db = await dbHelper.database;
+    await db.delete('Notes', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // EVENTS
+  Future<List<Map<String, dynamic>>> getEvents() async {
+    final db = await dbHelper.database;
+    return await db.query('Events', orderBy: 'eventDate ASC');
+  }
+
+  Future<void> insertEvent(Map<String, dynamic> event) async {
+    final db = await dbHelper.database;
+    await db.insert('Events', event);
+  }
+
+  Future<void> deleteEvent(int id) async {
+    final db = await dbHelper.database;
+    await db.delete('Events', where: 'id = ?', whereArgs: [id]);
+  }
 }
