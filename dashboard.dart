@@ -3,8 +3,6 @@ import 'db_service.dart';
 import 'login_page.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
-import 'notes_page.dart';
-import 'calendar_page.dart';
 
 class Dashboard extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -14,22 +12,28 @@ class Dashboard extends StatefulWidget {
   State<Dashboard> createState() => _DashboardState();
 }
 
-class _DashboardState extends State<Dashboard> {
+class _DashboardState extends State<Dashboard>
+    with SingleTickerProviderStateMixin {
   final DatabaseService dbService = DatabaseService();
   List<Map<String, dynamic>> documents = [];
+  List<Map<String, dynamic>> folders = [];
   List<Map<String, dynamic>> logs = [];
   List<Map<String, dynamic>> users = [];
-  String searchQuery = "";
+  int? selectedFolderId;
+
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
     _loadData();
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   Future<void> _loadData() async {
     documents = await dbService.getDocuments();
     logs = await dbService.getLogs();
+    folders = await dbService.getFolders(widget.user['id']);
     if (widget.user['role'] == 'admin') {
       users = await dbService.getUsers();
     }
@@ -43,7 +47,39 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
-  Future<void> _uploadFile() async {
+  // Create folder
+  Future<void> _createFolder() async {
+    TextEditingController folderCtrl = TextEditingController();
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text("Create New Folder"),
+        content: TextField(
+          controller: folderCtrl,
+          decoration: InputDecoration(labelText: "Folder Name"),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: Text("Cancel")),
+          ElevatedButton(
+            onPressed: () async {
+              final folderId = await dbService.createFolder(
+                  widget.user['id'], folderCtrl.text);
+              await dbService.logAction(widget.user['id'], "create_folder",
+                  "Created folder: ${folderCtrl.text}");
+              Navigator.pop(ctx);
+              setState(() => selectedFolderId = folderId);
+              _loadData();
+            },
+            child: Text("Create"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Upload file
+  Future<void> _uploadFile({int? folderId}) async {
     final result = await FilePicker.platform.pickFiles();
     if (result != null) {
       final file = result.files.single;
@@ -53,6 +89,7 @@ class _DashboardState extends State<Dashboard> {
         'tags': '',
         'filePath': file.path!,
         'uploadedAt': DateTime.now().toIso8601String(),
+        'folderId': folderId,
       });
       await dbService.logAction(
           widget.user['id'], "upload", "Uploaded file: ${file.name}");
@@ -60,19 +97,25 @@ class _DashboardState extends State<Dashboard> {
     }
   }
 
-  Future<void> _downloadFile(String path) async {
-    final file = File(path);
-    if (await file.exists()) {
-      await Process.run('explorer', [file.path]);
-      await dbService.logAction(
-          widget.user['id'], "download", "Downloaded file: ${file.path}");
-    }
+  Future<void> _deleteFolder(int id, String name) async {
+    await dbService.deleteFolder(id);
+    await dbService.logAction(
+        widget.user['id'], "delete_folder", "Deleted folder: $name");
+    if (selectedFolderId == id) selectedFolderId = null;
+    _loadData();
   }
 
   Future<void> _deleteFile(int id, String title) async {
     await dbService.deleteDocument(id);
     await dbService.logAction(
         widget.user['id'], "delete", "Deleted file: $title");
+    _loadData();
+  }
+
+  Future<void> _deleteUser(int id, String email) async {
+    await dbService.deleteUser(id);
+    await dbService.logAction(
+        widget.user['id'], "delete_user", "Deleted user: $email");
     _loadData();
   }
 
@@ -127,125 +170,166 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
-  Future<void> _deleteUser(int id, String email) async {
-    await dbService.deleteUser(id);
-    await dbService.logAction(
-        widget.user['id'], "delete_user", "Deleted user: $email");
-    _loadData();
-  }
-
   @override
   Widget build(BuildContext context) {
     final filteredDocs = documents
         .where((doc) =>
-            doc['title'].toLowerCase().contains(searchQuery.toLowerCase()))
+            selectedFolderId == null || doc['folderId'] == selectedFolderId)
         .toList();
 
     return Scaffold(
       appBar: AppBar(
         title: Text("DigiDocs Dashboard (${widget.user['role']})"),
-        actions: [
-          IconButton(onPressed: _logout, icon: Icon(Icons.logout)),
-        ],
+        actions: [IconButton(onPressed: _logout, icon: Icon(Icons.logout))],
       ),
-      body: ListView(
+      body: Row(
         children: [
-          // 🔍 Search bar
-          Padding(
-            padding: EdgeInsets.all(8),
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: "Search documents...",
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (val) => setState(() => searchQuery = val),
+          // 🗂 Sidebar for Folders
+          Container(
+            width: 250,
+            color: Colors.grey.shade200,
+            child: Column(
+              children: [
+                ListTile(
+                  title: Text("Folders",
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  trailing: IconButton(
+                      icon: Icon(Icons.add), onPressed: _createFolder),
+                ),
+                Expanded(
+                  child: ListView(
+                    children: folders.map((f) {
+                      return ListTile(
+                        title: Text(f['name']),
+                        selected: selectedFolderId == f['id'],
+                        onTap: () =>
+                            setState(() => selectedFolderId = f['id'] as int),
+                        trailing: IconButton(
+                          icon: Icon(Icons.delete, color: Colors.red),
+                          onPressed: () => _deleteFolder(
+                              f['id'] as int, f['name'] as String),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                if (selectedFolderId != null)
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: ElevatedButton.icon(
+                      onPressed: () => _uploadFile(folderId: selectedFolderId),
+                      icon: Icon(Icons.upload_file),
+                      label: Text("Upload to Folder"),
+                    ),
+                  ),
+              ],
             ),
           ),
-          Divider(),
 
-          // 📂 File management section
-          ListTile(
-            leading: Icon(Icons.folder),
-            title: Text("Manage Files"),
-            onTap: () {},
-          ),
-          Padding(
-            padding: EdgeInsets.all(8),
-            child: ElevatedButton(
-                onPressed: _uploadFile, child: Text("Upload File")),
-          ),
-          ...filteredDocs.map((doc) => ListTile(
-                title: Text(doc['title']),
-                subtitle: Text("By ${doc['author']} on ${doc['uploadedAt']}"),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                        onPressed: () => _downloadFile(doc['filePath']),
-                        icon: Icon(Icons.download)),
-                    IconButton(
-                        onPressed: () => _deleteFile(doc['id'], doc['title']),
-                        icon: Icon(Icons.delete)),
+          VerticalDivider(width: 1),
+
+          // 📝 Main Area with Tabs
+          Expanded(
+            child: Column(
+              children: [
+                TabBar(
+                  controller: _tabController,
+                  labelColor: Colors.blue,
+                  unselectedLabelColor: Colors.black,
+                  tabs: [
+                    Tab(text: "Files"),
+                    Tab(text: "Audit Logs"),
+                    if (widget.user['role'] == 'admin') Tab(text: "Users"),
                   ],
                 ),
-              )),
-          Divider(),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      // Files Tab
+                      Column(
+                        children: [
+                          Padding(
+                            padding: EdgeInsets.all(8),
+                            child: TextField(
+                              decoration: InputDecoration(
+                                hintText: "Search files...",
+                                prefixIcon: Icon(Icons.search),
+                                border: OutlineInputBorder(),
+                              ),
+                              onChanged: (val) => setState(() {}),
+                            ),
+                          ),
+                          Expanded(
+                            child: ListView.builder(
+                              itemCount: filteredDocs.length,
+                              itemBuilder: (context, index) {
+                                final doc = filteredDocs[index];
+                                return ListTile(
+                                  title: Text(doc['title']),
+                                  subtitle: Text(
+                                      "By ${doc['author']} on ${doc['uploadedAt']}"),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                          onPressed: () => Process.run(
+                                              'explorer', [doc['filePath']]),
+                                          icon: Icon(Icons.download)),
+                                      IconButton(
+                                          onPressed: () => _deleteFile(
+                                              doc['id'], doc['title']),
+                                          icon: Icon(Icons.delete)),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
 
-          // 📝 Notes section
-          ListTile(
-            leading: Icon(Icons.note_alt),
-            title: Text("Notes"),
-            subtitle: Text("Write and view your personal notes"),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => NotesPage(user: widget.user)),
-              );
-            },
-          ),
-          Divider(),
+                      // Audit Logs Tab
+                      ListView(
+                        children: logs.map((log) {
+                          return ListTile(
+                            title: Text("${log['action']}"),
+                            subtitle: Text(
+                                "${log['details']} at ${log['createdAt']}"),
+                          );
+                        }).toList(),
+                      ),
 
-          // 🗓️ Calendar section
-          ListTile(
-            leading: Icon(Icons.calendar_month),
-            title: Text("Calendar"),
-            subtitle: Text("Add and view your events"),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => CalendarPage(user: widget.user)),
-              );
-            },
-          ),
-          Divider(),
-
-          // 📜 Audit Logs
-          ListTile(
-              title: Text("Audit Logs",
-                  style: TextStyle(fontWeight: FontWeight.bold))),
-          ...logs.map((log) => ListTile(
-                title: Text("${log['action']}"),
-                subtitle: Text("${log['details']} at ${log['createdAt']}"),
-              )),
-          Divider(),
-
-          // 👥 User Management (Admin only)
-          if (widget.user['role'] == 'admin') ...[
-            ListTile(
-                title: Text("User Management",
-                    style: TextStyle(fontWeight: FontWeight.bold))),
-            ElevatedButton(onPressed: _addUser, child: Text("Add User")),
-            ...users.map((u) => ListTile(
-                  title: Text(u['name']),
-                  subtitle: Text("${u['email']} - ${u['role']}"),
-                  trailing: IconButton(
-                    icon: Icon(Icons.delete),
-                    onPressed: () => _deleteUser(u['id'], u['email']),
+                      // Users Tab (admin only)
+                      if (widget.user['role'] == 'admin')
+                        Column(
+                          children: [
+                            ElevatedButton(
+                                onPressed: _addUser, child: Text("Add User")),
+                            Expanded(
+                              child: ListView(
+                                children: users.map((u) {
+                                  return ListTile(
+                                    title: Text(u['name']),
+                                    subtitle:
+                                        Text("${u['email']} - ${u['role']}"),
+                                    trailing: IconButton(
+                                      icon: Icon(Icons.delete),
+                                      onPressed: () =>
+                                          _deleteUser(u['id'], u['email']),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                          ],
+                        ),
+                    ],
                   ),
-                )),
-          ],
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
