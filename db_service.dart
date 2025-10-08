@@ -95,4 +95,34 @@ class DatabaseService {
     final db = await dbHelper.database;
     await db.delete('Events', where: 'id = ?', whereArgs: [id]);
   }
+
+  // Create a folder
+  Future<int> createFolder(int userId, String name) async {
+    final db = await dbHelper.database;
+    return await db.insert('folders', {
+      'userId': userId,
+      'name': name,
+      'createdAt': DateTime.now().toIso8601String(),
+    });
+  }
+
+  // Get all folders for a user
+  Future<List<Map<String, dynamic>>> getFolders(int userId) async {
+    final db = await dbHelper.database;
+    return await db.query(
+      'folders',
+      where: 'userId = ?',
+      whereArgs: [userId],
+      orderBy: 'createdAt ASC',
+    );
+  }
+
+  // Delete a folder
+  Future<void> deleteFolder(int folderId) async {
+    final db = await dbHelper.database;
+    await db.delete('folders', where: 'id = ?', whereArgs: [folderId]);
+    // Optional: set folderId of documents in this folder to null
+    await db.update('Documents', {'folderId': null},
+        where: 'folderId = ?', whereArgs: [folderId]);
+  }
 }
