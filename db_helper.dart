@@ -36,13 +36,25 @@ class DatabaseHelper {
     ''');
 
     await db.execute('''
+      CREATE TABLE folders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        userId INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        createdAt TEXT NOT NULL,
+        FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+      )
+    ''');
+
+    await db.execute('''
       CREATE TABLE Documents (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
         author TEXT,
         tags TEXT,
         filePath TEXT NOT NULL,
-        uploadedAt TEXT NOT NULL
+        uploadedAt TEXT NOT NULL,
+        folderId INTEGER,
+        FOREIGN KEY (folderId) REFERENCES folders(id) ON DELETE SET NULL
       )
     ''');
 
