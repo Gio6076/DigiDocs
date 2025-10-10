@@ -1,3 +1,4 @@
+// lib/notes_page.dart
 import 'package:flutter/material.dart';
 import 'db_service.dart';
 
@@ -6,92 +7,87 @@ class NotesPage extends StatefulWidget {
   NotesPage({required this.user});
 
   @override
-  _NotesPageState createState() => _NotesPageState();
+  State<NotesPage> createState() => _NotesPageState();
 }
 
 class _NotesPageState extends State<NotesPage> {
-  final DatabaseService dbService = DatabaseService();
-  final TextEditingController _controller = TextEditingController();
-  List<Map<String, dynamic>> _notes = [];
+  final db = DatabaseService.instance;
+  final titleCtrl = TextEditingController();
+  final contentCtrl = TextEditingController();
+  List<Map<String, dynamic>> notes = [];
 
   @override
   void initState() {
     super.initState();
-    _loadNotes();
+    _load();
   }
 
-  Future<void> _loadNotes() async {
-    final db = await dbService.dbHelper.database;
-    await db.execute(
-        'CREATE TABLE IF NOT EXISTS notes (id INTEGER PRIMARY KEY AUTOINCREMENT, userId INTEGER, content TEXT, createdAt TEXT)');
-    final notes = await db.query(
-      'notes',
-      where: 'userId = ?',
-      whereArgs: [widget.user['id']],
-      orderBy: 'id DESC',
-    );
-    setState(() {
-      _notes = notes;
-    });
+  Future<void> _load() async {
+    notes = await db.getNotes();
+    setState(() {});
   }
 
-  Future<void> _saveNote() async {
-    final db = await dbService.dbHelper.database;
-    await db.insert('notes', {
-      'userId': widget.user['id'],
-      'content': _controller.text,
-      'createdAt': DateTime.now().toIso8601String(),
-    });
-    _controller.clear();
-    _loadNotes();
+  Future<void> _addNote() async {
+    final title = titleCtrl.text.trim();
+    final content = contentCtrl.text.trim();
+    if (content.isEmpty && title.isEmpty) return;
+    await db.insertNote(title, content);
+    await db.insertAuditLog(widget.user['username'], 'add_note');
+    titleCtrl.clear();
+    contentCtrl.clear();
+    _load();
   }
 
   Future<void> _deleteNote(int id) async {
-    final db = await dbService.dbHelper.database;
-    await db.delete('notes', where: 'id = ?', whereArgs: [id]);
-    _loadNotes();
+    await db.deleteNote(id);
+    await db.insertAuditLog(widget.user['username'], 'delete_note:$id');
+    _load();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Notes')),
+      appBar: AppBar(title: const Text('Notes')),
       body: Padding(
-        padding: EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(12.0),
         child: Column(
           children: [
             TextField(
-              controller: _controller,
-              decoration: InputDecoration(
-                hintText: 'Type your note...',
-                border: OutlineInputBorder(),
-              ),
-              maxLines: null,
-            ),
-            SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: _saveNote,
-              child: Text('Save Note'),
-            ),
-            SizedBox(height: 20),
+                controller: titleCtrl,
+                decoration: const InputDecoration(hintText: 'Title')),
+            const SizedBox(height: 8),
+            TextField(
+                controller: contentCtrl,
+                minLines: 3,
+                maxLines: 8,
+                decoration:
+                    const InputDecoration(hintText: 'Write your note...')),
+            const SizedBox(height: 8),
+            Row(children: [
+              ElevatedButton(onPressed: _addNote, child: const Text('Save')),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                  onPressed: () {
+                    titleCtrl.clear();
+                    contentCtrl.clear();
+                  },
+                  child: const Text('Clear')),
+            ]),
+            const SizedBox(height: 12),
             Expanded(
-              child: ListView.builder(
-                itemCount: _notes.length,
-                itemBuilder: (context, index) {
-                  final note = _notes[index];
-                  return Card(
-                    child: ListTile(
-                      title: Text(note['content'] ?? ''),
-                      subtitle: Text(note['createdAt'] ?? ''),
-                      trailing: IconButton(
-                        icon: Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => _deleteNote(note['id']),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
+                child: notes.isEmpty
+                    ? const Center(child: Text('No notes yet'))
+                    : ListView(
+                        children: notes
+                            .map((n) => Card(
+                                child: ListTile(
+                                    title: Text(n['title'] ?? ''),
+                                    subtitle: Text(n['content'] ?? ''),
+                                    trailing: IconButton(
+                                        icon: const Icon(Icons.delete),
+                                        onPressed: () =>
+                                            _deleteNote(n['id'] as int)))))
+                            .toList()))
           ],
         ),
       ),
