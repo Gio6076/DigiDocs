@@ -1,128 +1,144 @@
+// lib/db_service.dart
 import 'db_helper.dart';
 
 class DatabaseService {
-  final dbHelper = DatabaseHelper.instance;
+  static final DatabaseService instance = DatabaseService();
+  final DatabaseHelper _dbHelper = DatabaseHelper.instance;
 
-  Future<Map<String, dynamic>?> login(String email, String password) async {
-    final db = await dbHelper.database;
-    final res = await db.query(
-      'users',
-      where: 'email = ? AND password = ?',
-      whereArgs: [email, password],
-    );
+  DatabaseService();
+
+  // -------- AUTH --------
+  Future<Map<String, dynamic>?> login(String username, String password) async {
+    final db = await _dbHelper.database;
+    final res = await db.query('users',
+        where: 'username = ? AND password = ?',
+        whereArgs: [username, password]);
     return res.isNotEmpty ? res.first : null;
   }
 
-  Future<List<Map<String, dynamic>>> getDocuments() async {
-    final db = await dbHelper.database;
-    return await db.query('Documents');
-  }
-
-  Future<void> insertDocument(Map<String, dynamic> document) async {
-    final db = await dbHelper.database;
-    await db.insert('Documents', document);
-  }
-
-  Future<void> deleteDocument(int id) async {
-    final db = await dbHelper.database;
-    await db.delete('Documents', where: 'id = ?', whereArgs: [id]);
-  }
-
-  Future<void> logAction(int userId, String action, String details) async {
-    final db = await dbHelper.database;
-    await db.insert('AuditLogs', {
-      'userId': userId,
-      'action': action,
-      'details': details,
-      'createdAt': DateTime.now().toIso8601String(),
-    });
-  }
-
-  Future<List<Map<String, dynamic>>> getLogs() async {
-    final db = await dbHelper.database;
-    return await db.query('AuditLogs', orderBy: 'createdAt DESC');
-  }
-
   Future<List<Map<String, dynamic>>> getUsers() async {
-    final db = await dbHelper.database;
-    return await db.query('users');
+    final db = await _dbHelper.database;
+    return await db.query('users', orderBy: 'id ASC');
   }
 
-  Future<void> addUser(
-      String name, String email, String password, String role) async {
-    final db = await dbHelper.database;
-    await db.insert('users', {
-      'name': name,
-      'email': email,
+  Future<int> addUser(String username, String password, String role) async {
+    final db = await _dbHelper.database;
+    return await db.insert('users', {
+      'username': username,
       'password': password,
       'role': role,
     });
   }
 
   Future<void> deleteUser(int id) async {
-    final db = await dbHelper.database;
+    final db = await _dbHelper.database;
     await db.delete('users', where: 'id = ?', whereArgs: [id]);
   }
 
-  // NOTES
-  Future<List<Map<String, dynamic>>> getNotes() async {
-    final db = await dbHelper.database;
-    return await db.query('Notes', orderBy: 'createdAt DESC');
+  // -------- FOLDERS --------
+  Future<int> createFolder(String name) async {
+    final db = await _dbHelper.database;
+    return await db.insert('folders',
+        {'name': name, 'createdAt': DateTime.now().toIso8601String()});
   }
 
-  Future<void> insertNote(Map<String, dynamic> note) async {
-    final db = await dbHelper.database;
-    await db.insert('Notes', note);
+  Future<List<Map<String, dynamic>>> getFolders() async {
+    final db = await _dbHelper.database;
+    return await db.query('folders', orderBy: 'createdAt DESC');
   }
 
-  Future<void> deleteNote(int id) async {
-    final db = await dbHelper.database;
-    await db.delete('Notes', where: 'id = ?', whereArgs: [id]);
+  Future<void> deleteFolder(int id) async {
+    final db = await _dbHelper.database;
+    // delete files in folder first
+    await db.delete('documents', where: 'folderId = ?', whereArgs: [id]);
+    await db.delete('folders', where: 'id = ?', whereArgs: [id]);
   }
 
-  // EVENTS
-  Future<List<Map<String, dynamic>>> getEvents() async {
-    final db = await dbHelper.database;
-    return await db.query('Events', orderBy: 'eventDate ASC');
+  // -------- DOCUMENTS / FILES --------
+  Future<int> insertDocument(Map<String, dynamic> doc) async {
+    final db = await _dbHelper.database;
+    return await db.insert('documents', doc);
   }
 
-  Future<void> insertEvent(Map<String, dynamic> event) async {
-    final db = await dbHelper.database;
-    await db.insert('Events', event);
+  Future<List<Map<String, dynamic>>> getDocuments() async {
+    final db = await _dbHelper.database;
+    // unassigned files (folderId IS NULL)
+    return await db.query('documents',
+        where: 'folderId IS NULL', orderBy: 'uploadedAt DESC');
   }
 
-  Future<void> deleteEvent(int id) async {
-    final db = await dbHelper.database;
-    await db.delete('Events', where: 'id = ?', whereArgs: [id]);
+  Future<List<Map<String, dynamic>>> getFilesInFolder(int folderId) async {
+    final db = await _dbHelper.database;
+    return await db.query('documents',
+        where: 'folderId = ?',
+        whereArgs: [folderId],
+        orderBy: 'uploadedAt DESC');
   }
 
-  // Create a folder
-  Future<int> createFolder(int userId, String name) async {
-    final db = await dbHelper.database;
-    return await db.insert('folders', {
-      'userId': userId,
-      'name': name,
+  Future<void> moveFileToFolder(int fileId, int? folderId) async {
+    final db = await _dbHelper.database;
+    await db.update('documents', {'folderId': folderId},
+        where: 'id = ?', whereArgs: [fileId]);
+  }
+
+  Future<void> deleteDocument(int id) async {
+    final db = await _dbHelper.database;
+    await db.delete('documents', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // -------- NOTES --------
+  Future<int> insertNote(String title, String content) async {
+    final db = await _dbHelper.database;
+    return await db.insert('notes', {
+      'title': title,
+      'content': content,
       'createdAt': DateTime.now().toIso8601String(),
     });
   }
 
-  // Get all folders for a user
-  Future<List<Map<String, dynamic>>> getFolders(int userId) async {
-    final db = await dbHelper.database;
-    return await db.query(
-      'folders',
-      where: 'userId = ?',
-      whereArgs: [userId],
-      orderBy: 'createdAt ASC',
-    );
+  Future<List<Map<String, dynamic>>> getNotes() async {
+    final db = await _dbHelper.database;
+    return await db.query('notes', orderBy: 'createdAt DESC');
   }
 
-  // Delete a folder
-  Future<void> deleteFolder(int folderId) async {
-    final db = await dbHelper.database;
-    await db.delete('folders', where: 'id = ?', whereArgs: [folderId]);
-    // Optional: set folderId of documents in this folder to null
-    await db.update('Documents', {'folderId': null},
-        where: 'folderId = ?', whereArgs: [folderId]);
+  Future<void> deleteNote(int id) async {
+    final db = await _dbHelper.database;
+    await db.delete('notes', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // -------- CALENDAR / EVENTS --------
+  Future<int> insertEvent(
+      String name, String dateIso, String description) async {
+    final db = await _dbHelper.database;
+    return await db.insert('calendar', {
+      'eventName': name,
+      'eventDate': dateIso,
+      'description': description,
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> getEvents() async {
+    final db = await _dbHelper.database;
+    return await db.query('calendar', orderBy: 'eventDate ASC');
+  }
+
+  Future<void> deleteEvent(int id) async {
+    final db = await _dbHelper.database;
+    await db.delete('calendar', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // -------- AUDIT --------
+  Future<int> insertAuditLog(String username, String action) async {
+    final db = await _dbHelper.database;
+    return await db.insert('audit_logs', {
+      'username': username,
+      'action': action,
+      'timestamp': DateTime.now().toIso8601String(),
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> getAuditLogs() async {
+    final db = await _dbHelper.database;
+    return await db.query('audit_logs', orderBy: 'timestamp DESC');
   }
 }
