@@ -18,21 +18,31 @@ class _LoginPageState extends State<LoginPage> {
 
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Please enter both email and password")),
+        const SnackBar(content: Text("Please enter both email and password")),
       );
       return;
     }
 
-    final user = await dbService.login(email, password);
+    try {
+      final user = await dbService.login(email, password);
 
-    if (user != null) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => Dashboard(user: user)),
-      );
-    } else {
+      if (user != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Welcome, ${user['email']}!")),
+        );
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => Dashboard(user: user)),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Invalid email or password")),
+        );
+      }
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Invalid email or password")),
+        SnackBar(content: Text("Error: $e")),
       );
     }
   }
@@ -45,12 +55,12 @@ class _LoginPageState extends State<LoginPage> {
           // HEADER
           Container(
             width: double.infinity,
-            padding: EdgeInsets.all(7),
+            padding: const EdgeInsets.all(7),
             color: const Color.fromARGB(255, 200, 237, 247),
-            child: Text(
+            child: const Text(
               'DigiDocs Log In Page',
               style: TextStyle(
-                color: const Color.fromARGB(255, 0, 0, 0),
+                color: Color.fromARGB(255, 0, 0, 0),
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),
@@ -62,7 +72,7 @@ class _LoginPageState extends State<LoginPage> {
             child: Center(
               child: Container(
                 width: 400,
-                padding: EdgeInsets.all(24),
+                padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
                   color: const Color.fromARGB(255, 200, 237, 247),
                   borderRadius: BorderRadius.circular(12),
@@ -70,56 +80,56 @@ class _LoginPageState extends State<LoginPage> {
                     BoxShadow(
                       color: Colors.black12,
                       blurRadius: 10,
-                      offset: Offset(0, 5),
+                      offset: const Offset(0, 5),
                     ),
                   ],
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
+                    const Text(
                       'Welcome to DigiDocs!',
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    SizedBox(height: 20),
+                    const SizedBox(height: 20),
                     TextField(
                       controller: emailController,
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         labelText: 'Email',
                         prefixIcon: Icon(Icons.email),
                         border: OutlineInputBorder(),
                       ),
                     ),
-                    SizedBox(height: 15),
+                    const SizedBox(height: 15),
                     TextField(
                       controller: passwordController,
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         labelText: 'Password',
                         prefixIcon: Icon(Icons.lock),
                         border: OutlineInputBorder(),
                       ),
                       obscureText: true,
                     ),
-                    SizedBox(height: 10),
+                    const SizedBox(height: 10),
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
                         onPressed: () {
                           // TODO: Add forget password functionality
                         },
-                        child: Text('Forgot Password?'),
+                        child: const Text('Forgot Password?'),
                       ),
                     ),
-                    SizedBox(height: 10),
+                    const SizedBox(height: 10),
                     ElevatedButton.icon(
                       onPressed: _login,
-                      icon: Icon(Icons.login),
-                      label: Text('Log In'),
+                      icon: const Icon(Icons.login),
+                      label: const Text('Log In'),
                       style: ElevatedButton.styleFrom(
-                        minimumSize: Size(double.infinity, 50),
+                        minimumSize: const Size(double.infinity, 50),
                       ),
                     ),
                   ],
@@ -131,9 +141,9 @@ class _LoginPageState extends State<LoginPage> {
           // FOOTER
           Container(
             width: double.infinity,
-            padding: EdgeInsets.all(7),
+            padding: const EdgeInsets.all(7),
             color: const Color.fromARGB(255, 200, 237, 247),
-            child: Text(
+            child: const Text(
               '@DigiDocs 2025',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.black54),
