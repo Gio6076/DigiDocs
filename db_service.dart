@@ -86,7 +86,7 @@ class DatabaseService {
     await db.delete('documents', where: 'id = ?', whereArgs: [id]);
   }
 
-  // -------- NOTES --------
+  // -------- NOTES (updated for editing + auto-save) --------
   Future<int> insertNote(String title, String content) async {
     final db = await _dbHelper.database;
     return await db.insert('notes', {
@@ -99,6 +99,29 @@ class DatabaseService {
   Future<List<Map<String, dynamic>>> getNotes() async {
     final db = await _dbHelper.database;
     return await db.query('notes', orderBy: 'createdAt DESC');
+  }
+
+// ✅ Update an existing note by ID
+  Future<int> updateNote(int id, Map<String, dynamic> noteData) async {
+    final dbClient = await _dbHelper.database;
+    return await dbClient.update(
+      'notes',
+      noteData,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> updateNoteTitle(int id, String newTitle) async {
+    final db = await _dbHelper.database;
+    await db.update(
+      'notes',
+      {
+        'title': newTitle,
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 
   Future<void> deleteNote(int id) async {
@@ -125,6 +148,32 @@ class DatabaseService {
   Future<void> deleteEvent(int id) async {
     final db = await _dbHelper.database;
     await db.delete('calendar', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> incrementFileAccess(int id) async {
+    final dbClient = await _dbHelper.database;
+    await dbClient.rawUpdate(
+        'UPDATE documents SET accessCount = accessCount + 1 WHERE id = ?',
+        [id]);
+  }
+
+  Future<void> incrementFolderAccess(int id) async {
+    final db = await _dbHelper.database;
+    await db.rawUpdate(
+        'UPDATE folders SET accessCount = accessCount + 1 WHERE id = ?', [id]);
+  }
+
+  Future<List<Map<String, dynamic>>> getTopAccessedFiles(
+      {int limit = 5}) async {
+    final db = await _dbHelper.database;
+    return await db.query('documents',
+        orderBy: 'accessCount DESC', limit: limit);
+  }
+
+  Future<List<Map<String, dynamic>>> getTopAccessedFolders(
+      {int limit = 5}) async {
+    final db = await _dbHelper.database;
+    return await db.query('folders', orderBy: 'accessCount DESC', limit: limit);
   }
 
   // -------- AUDIT --------
