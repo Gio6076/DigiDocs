@@ -8,27 +8,28 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final DatabaseService dbService = DatabaseService();
-  final TextEditingController emailController = TextEditingController();
+  final DatabaseService dbService = DatabaseService.instance;
+  final TextEditingController usernameController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
   void _login() async {
-    final email = emailController.text.trim();
+    final username = usernameController.text.trim();
     final password = passwordController.text.trim();
 
-    if (email.isEmpty || password.isEmpty) {
+    if (username.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter both email and password")),
+        const SnackBar(
+            content: Text("Please enter both username and password")),
       );
       return;
     }
 
     try {
-      final user = await dbService.login(email, password);
+      final user = await dbService.login(username, password);
 
       if (user != null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Welcome, ${user['email']}!")),
+          SnackBar(content: Text("Welcome, ${user['username']}!")),
         );
 
         Navigator.pushReplacement(
@@ -37,7 +38,7 @@ class _LoginPageState extends State<LoginPage> {
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Invalid email or password")),
+          const SnackBar(content: Text("Invalid username or password")),
         );
       }
     } catch (e) {
@@ -50,6 +51,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[100],
       body: Column(
         children: [
           // HEADER
@@ -60,7 +62,7 @@ class _LoginPageState extends State<LoginPage> {
             child: const Text(
               'DigiDocs Log In Page',
               style: TextStyle(
-                color: Color.fromARGB(255, 0, 0, 0),
+                color: Colors.black,
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),
@@ -76,11 +78,11 @@ class _LoginPageState extends State<LoginPage> {
                 decoration: BoxDecoration(
                   color: const Color.fromARGB(255, 200, 237, 247),
                   borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
+                  boxShadow: const [
                     BoxShadow(
                       color: Colors.black12,
                       blurRadius: 10,
-                      offset: const Offset(0, 5),
+                      offset: Offset(0, 5),
                     ),
                   ],
                 ),
@@ -96,10 +98,10 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     const SizedBox(height: 20),
                     TextField(
-                      controller: emailController,
+                      controller: usernameController,
                       decoration: const InputDecoration(
-                        labelText: 'Email',
-                        prefixIcon: Icon(Icons.email),
+                        labelText: 'Username',
+                        prefixIcon: Icon(Icons.person),
                         border: OutlineInputBorder(),
                       ),
                     ),
