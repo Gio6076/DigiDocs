@@ -33,7 +33,8 @@ class DatabaseHelper {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT,
         password TEXT,
-        role TEXT
+        role TEXT,
+        createdAt TEXT DEFAULT (datetime('now'))
       )
     ''');
 
@@ -41,7 +42,8 @@ class DatabaseHelper {
       CREATE TABLE folders (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
-        createdAt TEXT
+        accessCount INTEGER DEFAULT 0,
+        createdAt TEXT DEFAULT (datetime('now'))
       )
     ''');
 
@@ -52,8 +54,10 @@ class DatabaseHelper {
         author TEXT,
         tags TEXT,
         filePath TEXT,
-        uploadedAt TEXT,
-        folderId INTEGER
+        uploadedAt TEXT DEFAULT (datetime('now')),
+        folderId INTEGER,
+        accessCount INTEGER DEFAULT 0,
+        FOREIGN KEY (folderId) REFERENCES folders(id) ON DELETE SET NULL
       )
     ''');
 
@@ -80,7 +84,7 @@ class DatabaseHelper {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT,
         action TEXT,
-        timestamp TEXT
+        timestamp TEXT DEFAULT (datetime('now'))
       )
     ''');
 
