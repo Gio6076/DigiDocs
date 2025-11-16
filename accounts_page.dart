@@ -1,6 +1,7 @@
 // lib/accounts_page.dart
 import 'package:flutter/material.dart';
 import 'db_service.dart';
+// import 'dashboard.dart';
 
 class AccountsPage extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -63,14 +64,97 @@ class _AccountsPageState extends State<AccountsPage> {
             TextField(
                 controller: passwordCtrl,
                 decoration: const InputDecoration(labelText: 'Password')),
-            DropdownButton<String>(
-              value: selectedRole,
-              items: const [
-                DropdownMenuItem(value: 'user', child: Text('User')),
-                DropdownMenuItem(value: 'admin', child: Text('Admin')),
+
+            // REPLACE THE DROPDOWN WITH THIS BUTTON-BASED SOLUTION:
+            const SizedBox(height: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Role',
+                    style:
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: selectedRole == 'user'
+                              ? Colors.blue.shade50
+                              : null,
+                          side: BorderSide(
+                            color: selectedRole == 'user'
+                                ? Colors.blue
+                                : Colors.grey,
+                          ),
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            selectedRole = 'user';
+                          });
+                        },
+                        child: Text(
+                          'User',
+                          style: TextStyle(
+                            color: selectedRole == 'user'
+                                ? Colors.blue
+                                : Colors.grey,
+                            fontWeight: selectedRole == 'user'
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: selectedRole == 'admin'
+                              ? Colors.blue.shade50
+                              : null,
+                          side: BorderSide(
+                            color: selectedRole == 'admin'
+                                ? Colors.blue
+                                : Colors.grey,
+                          ),
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            selectedRole = 'admin';
+                          });
+                        },
+                        child: Text(
+                          'Admin',
+                          style: TextStyle(
+                            color: selectedRole == 'admin'
+                                ? Colors.blue
+                                : Colors.grey,
+                            fontWeight: selectedRole == 'admin'
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Text(
+                    'Current selection: $selectedRole',
+                    style: TextStyle(
+                      color:
+                          selectedRole == 'admin' ? Colors.blue : Colors.green,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
               ],
-              onChanged: (v) => setState(() => selectedRole = v!),
             ),
+            // END OF BUTTON-BASED SOLUTION
+
+            const SizedBox(height: 16),
             ElevatedButton(onPressed: _addUser, child: const Text('Add User')),
             const SizedBox(height: 16),
             const Text('Existing Users', style: TextStyle(fontSize: 18)),
