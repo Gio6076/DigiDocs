@@ -1,6 +1,8 @@
-name: digidocs
-description: A digital archiving system built with Flutter for Windows.
+name: DigiDocs
+description: Digital Archiving and Document Management System
 publish_to: "none"
+
+version: 1.0.0+1
 
 environment:
   sdk: ">=2.17.0 <3.0.0"
@@ -12,7 +14,19 @@ dependencies:
   path: ^1.9.0
   file_picker: ^8.0.0
   table_calendar: ^3.1.0
-  flutter_dropzone: ^3.0.6
+  pdfx: ^2.4.0
+  shelf: ^1.4.1
+  shelf_router: ^1.1.4
+  shelf_static: ^1.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
 
 flutter:
   uses-material-design: true
+
+  assets:
+    - assets/images/Logo.png # Uncomment this line if you want to specify the exact logo file
+    - assets/images/Name.png
