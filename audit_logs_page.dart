@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'db_service.dart';
+// import 'dashboard.dart';
 
 class AuditLogsPage extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -39,7 +40,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
             children: [
               Row(
                 children: [
-                  const Text('🧾 Audit Logs',
+                  const Text(' Audit Logs',
                       style:
                           TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const Spacer(),
