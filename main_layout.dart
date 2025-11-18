@@ -225,26 +225,104 @@ class _DashboardState extends State<Dashboard>
   }
 
   Future<void> _uploadFile({int? folderId}) async {
-    final result = await FilePicker.platform.pickFiles();
-    if (result == null) return;
-    final f = result.files.single;
-    if (f.path == null) return;
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: true, // Enable multiple file selection
+      type: FileType.custom,
+      allowedExtensions: [
+        'pdf',
+        'doc',
+        'docx',
+        'txt',
+        'jpg',
+        'jpeg',
+        'png',
+        'csv',
+        'md'
+      ],
+    );
 
-    final doc = {
-      'title': f.name,
-      'author': widget.user['username'],
-      'tags': '',
-      'filePath': f.path,
-      'uploadedAt': DateTime.now().toIso8601String(),
-      'folderId': folderId,
-    };
+    if (result == null || result.files.isEmpty) return;
 
-    await db.insertDocument(doc);
-    await db.insertAuditLog(
-        widget.user['username'],
-        folderId == null
-            ? 'upload: ${f.name}'
-            : 'upload: ${f.name} -> folder $folderId');
+    int successCount = 0;
+    int errorCount = 0;
+
+    // Show progress dialog for multiple files
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Uploading Files',
+            style: TextStyle(fontWeight: FontWeight.w600)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(
+              'Processing ${result.files.length} files...',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Success: $successCount | Failed: $errorCount',
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    // Upload each file
+    for (final f in result.files) {
+      if (f.path == null) {
+        errorCount++;
+        continue;
+      }
+
+      try {
+        final doc = {
+          'title': f.name,
+          'author': widget.user['username'],
+          'tags': '',
+          'filePath': f.path,
+          'uploadedAt': DateTime.now().toIso8601String(),
+          'folderId': folderId,
+        };
+
+        await db.insertDocument(doc);
+        await db.insertAuditLog(
+          widget.user['username'],
+          folderId == null
+              ? 'upload: ${f.name}'
+              : 'upload: ${f.name} -> folder $folderId',
+        );
+        successCount++;
+      } catch (e) {
+        errorCount++;
+        print('Error uploading file ${f.name}: $e');
+      }
+    }
+
+    // Close the progress dialog
+    Navigator.of(context).pop();
+
+    // Show result summary
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          successCount > 0
+              ? 'Successfully uploaded $successCount file(s)${errorCount > 0 ? ', $errorCount failed' : ''}'
+              : 'Failed to upload files',
+        ),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        backgroundColor:
+            successCount > 0 ? const Color(0xFF4CAF50) : Colors.orange,
+      ),
+    );
+
     await _loadAll();
   }
 
@@ -302,8 +380,282 @@ class _DashboardState extends State<Dashboard>
   }
 
   // --------------------------
-  // File popup menu & tile
+  // Password Change Methods
   // --------------------------
+  Future<void> _changeUserPassword(Map<String, dynamic> user) async {
+    final passwordCtrl = TextEditingController();
+    final confirmCtrl = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Change Password',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Changing password for: ${user['username']}',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: passwordCtrl,
+              obscureText: true,
+              decoration: InputDecoration(
+                labelText: 'New Password',
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                filled: true,
+                fillColor: Colors.grey[50],
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: confirmCtrl,
+              obscureText: true,
+              decoration: InputDecoration(
+                labelText: 'Confirm New Password',
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                filled: true,
+                fillColor: Colors.grey[50],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF4CAF50),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () async {
+              final newPassword = passwordCtrl.text.trim();
+              final confirmPassword = confirmCtrl.text.trim();
+
+              if (newPassword.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('Please enter a new password'),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+                return;
+              }
+
+              if (newPassword != confirmPassword) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('Passwords do not match'),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+                return;
+              }
+
+              if (newPassword.length < 3) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content:
+                        const Text('Password must be at least 3 characters'),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+                return;
+              }
+
+              try {
+                await db.updateUserPassword(user['id'] as int, newPassword);
+                await db.insertAuditLog(
+                  widget.user['username'],
+                  'change_password: ${user['username']}',
+                );
+
+                Navigator.pop(ctx);
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Password updated for ${user['username']}'),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                    backgroundColor: const Color(0xFF4CAF50),
+                  ),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Error updating password: $e'),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            child: const Text('Update Password',
+                style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _changeOwnPassword() async {
+    final passwordCtrl = TextEditingController();
+    final confirmCtrl = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Change My Password',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Changing password for: ${widget.user['username']}',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: passwordCtrl,
+              obscureText: true,
+              decoration: InputDecoration(
+                labelText: 'New Password',
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                filled: true,
+                fillColor: Colors.grey[50],
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: confirmCtrl,
+              obscureText: true,
+              decoration: InputDecoration(
+                labelText: 'Confirm New Password',
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                filled: true,
+                fillColor: Colors.grey[50],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF4CAF50),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () async {
+              final newPassword = passwordCtrl.text.trim();
+              final confirmPassword = confirmCtrl.text.trim();
+
+              if (newPassword.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('Please enter a new password'),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+                return;
+              }
+
+              if (newPassword != confirmPassword) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('Passwords do not match'),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+                return;
+              }
+
+              try {
+                await db.updateUserPassword(
+                    widget.user['id'] as int, newPassword);
+                await db.insertAuditLog(
+                  widget.user['username'],
+                  'change_own_password',
+                );
+
+                Navigator.pop(ctx);
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('Your password has been updated'),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                    backgroundColor: const Color(0xFF4CAF50),
+                  ),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Error updating password: $e'),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            child: const Text('Update Password',
+                style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+// --------------------------
+// File popup menu & tile
+// --------------------------
   Widget _buildFilePopupMenu(Map<String, dynamic> file) {
     return PopupMenuButton<String>(
       icon: const Icon(Icons.more_vert, color: Colors.grey),
@@ -382,25 +734,81 @@ class _DashboardState extends State<Dashboard>
           final outputDir = await FilePicker.platform.getDirectoryPath();
           if (outputDir == null) return;
           final destPath = '$outputDir/${file['title']}';
-          await File(filePath).copy(destPath);
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('File downloaded to $destPath'),
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          ));
+
+          try {
+            await File(filePath).copy(destPath);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('File downloaded to $destPath'),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+                backgroundColor: const Color(0xFF4CAF50),
+              ),
+            );
+          } catch (e) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error downloading file: $e'),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
         } else if (value == 'export_pdf' || value == 'export_docx') {
           final outputDir = await FilePicker.platform.getDirectoryPath();
           if (outputDir == null) return;
-          final destPath =
-              '$outputDir/${file['title'].split('.').first}.${value == 'export_pdf' ? 'pdf' : 'docx'}';
-          await File(filePath).copy(destPath);
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Exported to $destPath'),
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          ));
+
+          final originalFile = File(filePath);
+          if (!await originalFile.exists()) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Original file not found'),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+                backgroundColor: Colors.red,
+              ),
+            );
+            return;
+          }
+
+          try {
+            final fileExtension = value == 'export_pdf' ? 'pdf' : 'docx';
+            final fileName = file['title'].split('.').first;
+            final destPath = '$outputDir/${fileName}_exported.$fileExtension';
+
+            // Copy the file to the new location with new extension
+            await originalFile.copy(destPath);
+
+            // Log the export action
+            await db.insertAuditLog(
+              widget.user['username'],
+              'export_$fileExtension: ${file['title']}',
+            );
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('File exported as $fileExtension to $destPath'),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+                backgroundColor: const Color(0xFF4CAF50),
+              ),
+            );
+          } catch (e) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error exporting file: $e'),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
         } else if (value == 'delete') {
           final confirmed = await showDialog<bool>(
             context: context,
@@ -1533,28 +1941,82 @@ class _DashboardState extends State<Dashboard>
                                                             FontWeight.w500,
                                                       ),
                                                     ),
-                                                    trailing:
-                                                        user['username'] ==
-                                                                'admin'
-                                                            ? null
-                                                            : IconButton(
-                                                                icon: const Icon(
-                                                                    Icons
-                                                                        .delete_outline,
-                                                                    color: Colors
-                                                                        .grey),
-                                                                onPressed:
-                                                                    () async {
-                                                                  await db.deleteUser(
-                                                                      user['id']
-                                                                          as int);
-                                                                  await db.insertAuditLog(
-                                                                      widget.user[
-                                                                          'username'],
-                                                                      'delete_user: ${user['username']}');
-                                                                  await _loadAll();
-                                                                },
+                                                    trailing: Row(
+                                                      mainAxisSize:
+                                                          MainAxisSize.min,
+                                                      children: [
+                                                        // Change Password Button
+                                                        if (user['username'] !=
+                                                            'admin') // Prevent changing admin's password
+                                                          IconButton(
+                                                            icon: Container(
+                                                              width: 32,
+                                                              height: 32,
+                                                              decoration:
+                                                                  BoxDecoration(
+                                                                color: const Color(
+                                                                        0xFF4CAF50)
+                                                                    .withOpacity(
+                                                                        0.1),
+                                                                borderRadius:
+                                                                    BorderRadius
+                                                                        .circular(
+                                                                            16),
                                                               ),
+                                                              child: const Icon(
+                                                                  Icons
+                                                                      .lock_reset,
+                                                                  color: Color(
+                                                                      0xFF4CAF50),
+                                                                  size: 16),
+                                                            ),
+                                                            onPressed: () =>
+                                                                _changeUserPassword(
+                                                                    user),
+                                                            tooltip:
+                                                                'Change Password',
+                                                          ),
+                                                        // Delete User Button
+                                                        if (user['username'] !=
+                                                            'admin')
+                                                          IconButton(
+                                                            icon: Container(
+                                                              width: 32,
+                                                              height: 32,
+                                                              decoration:
+                                                                  BoxDecoration(
+                                                                color: Colors
+                                                                    .red
+                                                                    .withOpacity(
+                                                                        0.1),
+                                                                borderRadius:
+                                                                    BorderRadius
+                                                                        .circular(
+                                                                            16),
+                                                              ),
+                                                              child: const Icon(
+                                                                  Icons
+                                                                      .delete_outline,
+                                                                  color: Colors
+                                                                      .red,
+                                                                  size: 16),
+                                                            ),
+                                                            onPressed:
+                                                                () async {
+                                                              await db.deleteUser(
+                                                                  user['id']
+                                                                      as int);
+                                                              await db.insertAuditLog(
+                                                                  widget.user[
+                                                                      'username'],
+                                                                  'delete_user: ${user['username']}');
+                                                              await _loadAll();
+                                                            },
+                                                            tooltip:
+                                                                'Delete User',
+                                                          ),
+                                                      ],
+                                                    ),
                                                   ),
                                                 );
                                               },
@@ -1596,6 +2058,9 @@ class _DashboardState extends State<Dashboard>
               MaterialPageRoute(
                   builder: (_) => CalendarPage(user: widget.user)),
             );
+            break;
+          case 'change_password':
+            _changeOwnPassword();
             break;
           case 'logout':
             _logout();
@@ -1665,7 +2130,6 @@ class _DashboardState extends State<Dashboard>
             ],
           ),
         ),
-
         const PopupMenuDivider(),
 
         // Logout Option
