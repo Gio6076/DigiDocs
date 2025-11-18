@@ -30,6 +30,17 @@ class DatabaseService {
     });
   }
 
+  // ADD THIS METHOD - Password update functionality
+  Future<void> updateUserPassword(int userId, String newPassword) async {
+    final db = await _dbHelper.database;
+    await db.update(
+      'users',
+      {'password': newPassword},
+      where: 'id = ?',
+      whereArgs: [userId],
+    );
+  }
+
   Future<void> deleteUser(int id) async {
     final db = await _dbHelper.database;
     await db.delete('users', where: 'id = ?', whereArgs: [id]);
